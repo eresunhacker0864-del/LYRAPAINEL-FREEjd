@@ -1,0 +1,183 @@
+-- [[ ROBLOX SCRIPT: UI + ESP + AIMBOT (FOV 60) ]]
+-- Criado para fins educacionais. Versão sem proteções de Anti-Kick/Anti-Ban conforme solicitado.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- [[ CONFIGURAÇÃO DO FOV (CÍRCULO) ]]
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible = false
+fovCircle.Radius = 60
+fovCircle.Color = Color3.fromRGB(255, 255, 255)
+fovCircle.Thickness = 1
+fovCircle.Filled = false
+fovCircle.Transparency = 1
+
+-- [[ CONFIGURAÇÃO DA UI ]]
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local TitleLabel = Instance.new("TextLabel")
+local CloseButton = Instance.new("TextButton")
+
+ScreenGui.Name = "ManusMenu_Pastefy"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -100, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 200, 0, 180)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+TitleLabel.Name = "Title"
+TitleLabel.Parent = MainFrame
+TitleLabel.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Text = "PASTEFY SCRIPT"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 18
+
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseButton.Position = UDim2.new(1, -30, 0, 0)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local function createMenuButton(name, pos, text)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Parent = MainFrame
+    btn.Position = pos
+    btn.Size = UDim2.new(0.8, 0, 0.2, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = text
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 14
+    btn.BorderSizePixel = 0
+    return btn
+end
+
+local ESPToggle = createMenuButton("ESPToggle", UDim2.new(0.1, 0, 0.25, 0), "ESP Lines: OFF")
+local AimbotToggle = createMenuButton("AimbotToggle", UDim2.new(0.1, 0, 0.5, 0), "Aimbot (Head): OFF")
+local FOVToggle = createMenuButton("FOVToggle", UDim2.new(0.1, 0, 0.75, 0), "Show FOV: OFF")
+
+-- VARIÁVEIS DE ESTADO
+local espEnabled = false
+local aimbotEnabled = false
+local showFOV = false
+
+-- FECHAR/ABRIR UI (Tecla Insert)
+local function toggleUI() ScreenGui.Enabled = not ScreenGui.Enabled end
+CloseButton.MouseButton1Click:Connect(toggleUI)
+UserInputService.InputBegan:Connect(function(i, g) if not g and i.KeyCode == Enum.KeyCode.Insert then toggleUI() end end)
+
+-- EVENTOS DOS BOTÕES
+ESPToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    ESPToggle.Text = "ESP Lines: " .. (espEnabled and "ON" or "OFF")
+    ESPToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+end)
+
+AimbotToggle.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    AimbotToggle.Text = "Aimbot (Head): " .. (aimbotEnabled and "ON" or "OFF")
+    AimbotToggle.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+end)
+
+FOVToggle.MouseButton1Click:Connect(function()
+    showFOV = not showFOV
+    FOVToggle.Text = "Show FOV: " .. (showFOV and "ON" or "OFF")
+    FOVToggle.BackgroundColor3 = showFOV and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+end)
+
+-- [[ LÓGICA ESP ]]
+local lines = {}
+local function createLine()
+    local l = Drawing.new("Line")
+    l.Visible = false
+    l.Color = Color3.fromRGB(255, 255, 255)
+    l.Thickness = 1
+    return l
+end
+
+local function updateESP()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            if not lines[p] then lines[p] = createLine() end
+            local line = lines[p]
+            local hrp = p.Character.HumanoidRootPart
+            local hum = p.Character:FindFirstChild("Humanoid")
+            if espEnabled and hum and hum.Health > 0 then
+                local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    line.To = Vector2.new(vector.X, vector.Y)
+                    line.Visible = true
+                else line.Visible = false end
+            else line.Visible = false end
+        elseif lines[p] then lines[p].Visible = false end
+    end
+end
+
+-- [[ LÓGICA AIMBOT COM FOV & VISIBILIDADE ]]
+local function isVisible(part)
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local origin = Camera.CFrame.Position
+    local direction = (part.Position - origin).Unit * (part.Position - origin).Magnitude
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {char, Camera}
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    local result = workspace:Raycast(origin, direction, params)
+    return result and result.Instance:IsDescendantOf(part.Parent)
+end
+
+local function getClosestInFOV()
+    local target = nil
+    local shortestDist = math.huge
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+            local head = p.Character.Head
+            local hum = p.Character:FindFirstChild("Humanoid")
+            if hum and hum.Health > 0 and isVisible(head) then
+                local vector, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local dist = (Vector2.new(vector.X, vector.Y) - center).Magnitude
+                    if dist <= fovCircle.Radius and dist < shortestDist then
+                        target = p
+                        shortestDist = dist
+                    end
+                end
+            end
+        end
+    end
+    return target
+end
+
+-- [[ LOOP PRINCIPAL ]]
+RunService.RenderStepped:Connect(function()
+    updateESP()
+    fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    fovCircle.Visible = showFOV
+    
+    if aimbotEnabled then
+        local target = getClosestInFOV()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p) if lines[p] then lines[p]:Remove() lines[p] = nil end end)
