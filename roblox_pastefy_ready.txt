@@ -1,11 +1,21 @@
--- [[ ROBLOX SCRIPT: UI + ESP + AIMBOT (FOV 60) ]]
--- Criado para fins educacionais. Versão sem proteções de Anti-Kick/Anti-Ban conforme solicitado.
+-- [[ ROBLOX ELITE SCRIPT V5: UI AMPLIADA + ESP SKELETON + BOX + TEAM COLORS + INF JUMP + FLY + AIMBOT FOV 60 ]]
+-- Criado para fins educacionais e de estudo de lógica em Lua.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+
+-- [[ VARIÁVEIS DE ESTADO ]]
+local espLinesEnabled = false
+local espBoxEnabled = false
+local espSkeletonEnabled = false
+local aimbotEnabled = false
+local showFOV = false
+local infJumpEnabled = false
+local flyEnabled = false
+local flySpeed = 50
 
 -- [[ CONFIGURAÇÃO DO FOV (CÍRCULO) ]]
 local fovCircle = Drawing.new("Circle")
@@ -16,148 +26,238 @@ fovCircle.Thickness = 1
 fovCircle.Filled = false
 fovCircle.Transparency = 1
 
--- [[ CONFIGURAÇÃO DA UI ]]
+-- [[ CONFIGURAÇÃO DA UI AMPLIADA ]]
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local TitleLabel = Instance.new("TextLabel")
 local CloseButton = Instance.new("TextButton")
+local ScrollingFrame = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
 
-ScreenGui.Name = "ManusMenu_Pastefy"
+ScreenGui.Name = "ManusElite_V5"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -100, 0.5, -100)
-MainFrame.Size = UDim2.new(0, 200, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -175)
+MainFrame.Size = UDim2.new(0, 300, 0, 350) -- UI MAIS GRANDE
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 TitleLabel.Name = "Title"
 TitleLabel.Parent = MainFrame
-TitleLabel.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-TitleLabel.Size = UDim2.new(1, 0, 0, 30)
-TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Text = "PASTEFY SCRIPT"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleLabel.Size = UDim2.new(1, 0, 0, 40)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "MANUS ELITE V5 - FULL"
+TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
 TitleLabel.TextSize = 18
 
 CloseButton.Name = "CloseButton"
 CloseButton.Parent = MainFrame
-CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseButton.Position = UDim2.new(1, -30, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+CloseButton.Position = UDim2.new(1, -35, 0, 5)
 CloseButton.Size = UDim2.new(0, 30, 0, 30)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.GothamBold
 
-local function createMenuButton(name, pos, text)
+ScrollingFrame.Name = "ScrollingFrame"
+ScrollingFrame.Parent = MainFrame
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -60)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 1.5, 0)
+ScrollingFrame.ScrollBarThickness = 4
+
+UIListLayout.Parent = ScrollingFrame
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local function createToggle(name, text, callback)
     local btn = Instance.new("TextButton")
     btn.Name = name
-    btn.Parent = MainFrame
-    btn.Position = pos
-    btn.Size = UDim2.new(0.8, 0, 0.2, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.Parent = ScrollingFrame
+    btn.Size = UDim2.new(0.95, 0, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Text = text
-    btn.Font = Enum.Font.SourceSans
+    btn.Text = text .. ": OFF"
+    btn.Font = Enum.Font.Gotham
     btn.TextSize = 14
     btn.BorderSizePixel = 0
+    
+    local enabled = false
+    btn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
+        btn.BackgroundColor3 = enabled and Color3.fromRGB(0, 120, 120) or Color3.fromRGB(45, 45, 45)
+        callback(enabled)
+    end)
     return btn
 end
 
-local ESPToggle = createMenuButton("ESPToggle", UDim2.new(0.1, 0, 0.25, 0), "ESP Lines: OFF")
-local AimbotToggle = createMenuButton("AimbotToggle", UDim2.new(0.1, 0, 0.5, 0), "Aimbot (Head): OFF")
-local FOVToggle = createMenuButton("FOVToggle", UDim2.new(0.1, 0, 0.75, 0), "Show FOV: OFF")
-
--- VARIÁVEIS DE ESTADO
-local espEnabled = false
-local aimbotEnabled = false
-local showFOV = false
-
--- FECHAR/ABRIR UI (Tecla Insert)
+-- FECHAR/ABRIR UI
 local function toggleUI() ScreenGui.Enabled = not ScreenGui.Enabled end
 CloseButton.MouseButton1Click:Connect(toggleUI)
 UserInputService.InputBegan:Connect(function(i, g) if not g and i.KeyCode == Enum.KeyCode.Insert then toggleUI() end end)
 
--- EVENTOS DOS BOTÕES
-ESPToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    ESPToggle.Text = "ESP Lines: " .. (espEnabled and "ON" or "OFF")
-    ESPToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+-- [[ FUNÇÕES DE MOVIMENTAÇÃO ]]
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+    end
 end)
 
-AimbotToggle.MouseButton1Click:Connect(function()
-    aimbotEnabled = not aimbotEnabled
-    AimbotToggle.Text = "Aimbot (Head): " .. (aimbotEnabled and "ON" or "OFF")
-    AimbotToggle.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+-- Fly Logic
+local flyBodyVel, flyBodyGyro
+local function startFly()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
+    flyBodyVel = Instance.new("BodyVelocity", hrp)
+    flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+    flyBodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    
+    flyBodyGyro = Instance.new("BodyGyro", hrp)
+    flyBodyGyro.P = 9e4
+    flyBodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    flyBodyGyro.CFrame = hrp.CFrame
+end
+
+local function stopFly()
+    if flyBodyVel then flyBodyVel:Destroy() end
+    if flyBodyGyro then flyBodyGyro:Destroy() end
+end
+
+RunService.RenderStepped:Connect(function()
+    if flyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local camCF = Camera.CFrame
+        local dir = Vector3.new(0, 0, 0)
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + camCF.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - camCF.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - camCF.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + camCF.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0, 1, 0) end
+        
+        flyBodyVel.Velocity = dir * flySpeed
+        flyBodyGyro.CFrame = camCF
+    end
 end)
 
-FOVToggle.MouseButton1Click:Connect(function()
-    showFOV = not showFOV
-    FOVToggle.Text = "Show FOV: " .. (showFOV and "ON" or "OFF")
-    FOVToggle.BackgroundColor3 = showFOV and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
-end)
+-- [[ LÓGICA ESP (SKELETON, BOX, LINES, TEAM COLORS) ]]
+local objects = {}
 
--- [[ LÓGICA ESP ]]
-local lines = {}
-local function createLine()
-    local l = Drawing.new("Line")
-    l.Visible = false
-    l.Color = Color3.fromRGB(255, 255, 255)
-    l.Thickness = 1
-    return l
+local function createDrawings(player)
+    local d = {
+        Line = Drawing.new("Line"),
+        Box = Drawing.new("Square"),
+        Skeleton = {}
+    }
+    -- Setup Skeleton Lines (Basic joints)
+    local joints = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "RightUpperArm", "RightLowerArm", "LeftUpperLeg", "LeftLowerLeg", "RightUpperLeg", "RightLowerLeg"}
+    for i=1, 10 do d.Skeleton[i] = Drawing.new("Line") end
+    
+    d.Line.Thickness = 1
+    d.Box.Thickness = 1
+    d.Box.Filled = false
+    
+    objects[player] = d
 end
 
 local function updateESP()
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            if not lines[p] then lines[p] = createLine() end
-            local line = lines[p]
-            local hrp = p.Character.HumanoidRootPart
-            local hum = p.Character:FindFirstChild("Humanoid")
-            if espEnabled and hum and hum.Health > 0 then
-                local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+        if p ~= LocalPlayer and p.Character then
+            if not objects[p] then createDrawings(p) end
+            local d = objects[p]
+            local char = p.Character
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChild("Humanoid")
+            local head = char:FindFirstChild("Head")
+            
+            local teamColor = p.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+            
+            if hum and hum.Health > 0 and hrp and head then
+                local hrpPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                
+                -- Box & Lines
                 if onScreen then
-                    line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                    line.To = Vector2.new(vector.X, vector.Y)
-                    line.Visible = true
-                else line.Visible = false end
-            else line.Visible = false end
-        elseif lines[p] then lines[p].Visible = false end
+                    -- Lines
+                    d.Line.Visible = espLinesEnabled
+                    d.Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    d.Line.To = Vector2.new(hrpPos.X, hrpPos.Y)
+                    d.Line.Color = teamColor
+                    
+                    -- Box
+                    d.Box.Visible = espBoxEnabled
+                    local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                    local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                    d.Box.Size = Vector2.new(2500 / hrpPos.Z, headPos.Y - legPos.Y)
+                    d.Box.Position = Vector2.new(hrpPos.X - d.Box.Size.X / 2, hrpPos.Y - d.Box.Size.Y / 2)
+                    d.Box.Color = teamColor
+                else
+                    d.Line.Visible = false
+                    d.Box.Visible = false
+                end
+                
+                -- Skeleton (Simplificado para estabilidade)
+                if espSkeletonEnabled and onScreen then
+                    -- Exemplo: Head para Torso
+                    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+                    if torso then
+                        local p1 = Camera:WorldToViewportPoint(head.Position)
+                        local p2 = Camera:WorldToViewportPoint(torso.Position)
+                        d.Skeleton[1].Visible = true
+                        d.Skeleton[1].From = Vector2.new(p1.X, p1.Y)
+                        d.Skeleton[1].To = Vector2.new(p2.X, p2.Y)
+                        d.Skeleton[1].Color = teamColor
+                    else d.Skeleton[1].Visible = false end
+                else
+                    for i=1, #d.Skeleton do d.Skeleton[i].Visible = false end
+                end
+            else
+                d.Line.Visible = false
+                d.Box.Visible = false
+                for i=1, #d.Skeleton do d.Skeleton[i].Visible = false end
+            end
+        elseif objects[p] then
+            objects[p].Line.Visible = false
+            objects[p].Box.Visible = false
+            for i=1, #objects[p].Skeleton do objects[p].Skeleton[i].Visible = false end
+        end
     end
 end
 
--- [[ LÓGICA AIMBOT COM FOV & VISIBILIDADE ]]
+-- [[ LÓGICA AIMBOT ]]
 local function isVisible(part)
     local char = LocalPlayer.Character
     if not char then return false end
-    local origin = Camera.CFrame.Position
-    local direction = (part.Position - origin).Unit * (part.Position - origin).Magnitude
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {char, Camera}
     params.FilterType = Enum.RaycastFilterType.Exclude
-    local result = workspace:Raycast(origin, direction, params)
+    local result = workspace:Raycast(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000, params)
     return result and result.Instance:IsDescendantOf(part.Parent)
 end
 
-local function getClosestInFOV()
-    local target = nil
-    local shortestDist = math.huge
+local function getClosest()
+    local target, dist = nil, math.huge
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
             local head = p.Character.Head
-            local hum = p.Character:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 and isVisible(head) then
-                local vector, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if isVisible(head) then
+                local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local dist = (Vector2.new(vector.X, vector.Y) - center).Magnitude
-                    if dist <= fovCircle.Radius and dist < shortestDist then
-                        target = p
-                        shortestDist = dist
+                    local d = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                    if d <= fovCircle.Radius and d < dist then
+                        target, dist = p, d
                     end
                 end
             end
@@ -166,18 +266,36 @@ local function getClosestInFOV()
     return target
 end
 
+-- [[ CRIAÇÃO DOS BOTÕES ]]
+createToggle("AimbotToggle", "Aimbot (Head)", function(v) aimbotEnabled = v end)
+createToggle("FOVToggle", "Show FOV (60)", function(v) showFOV = v end)
+createToggle("LineToggle", "ESP Lines", function(v) espLinesEnabled = v end)
+createToggle("BoxToggle", "ESP Box", function(v) espBoxEnabled = v end)
+createToggle("SkeletonToggle", "ESP Skeleton", function(v) espSkeletonEnabled = v end)
+createToggle("JumpToggle", "Infinite Jump", function(v) infJumpEnabled = v end)
+createToggle("FlyToggle", "Fly (W,A,S,D,Space)", function(v) 
+    flyEnabled = v 
+    if v then startFly() else stopFly() end
+end)
+
 -- [[ LOOP PRINCIPAL ]]
 RunService.RenderStepped:Connect(function()
     updateESP()
     fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     fovCircle.Visible = showFOV
-    
     if aimbotEnabled then
-        local target = getClosestInFOV()
-        if target and target.Character and target.Character:FindFirstChild("Head") then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+        local t = getClosest()
+        if t and t.Character and t.Character:FindFirstChild("Head") then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Character.Head.Position)
         end
     end
 end)
 
-Players.PlayerRemoving:Connect(function(p) if lines[p] then lines[p]:Remove() lines[p] = nil end end)
+Players.PlayerRemoving:Connect(function(p) 
+    if objects[p] then 
+        objects[p].Line:Remove() 
+        objects[p].Box:Remove() 
+        for i=1, #objects[p].Skeleton do objects[p].Skeleton[i]:Remove() end
+        objects[p] = nil 
+    end 
+end)
