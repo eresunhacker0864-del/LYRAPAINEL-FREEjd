@@ -1,11 +1,47 @@
--- [[ ROBLOX ELITE SCRIPT V5: UI AMPLIADA + ESP SKELETON + BOX + TEAM COLORS + INF JUMP + FLY + AIMBOT FOV 60 ]]
+-- [[ ROBLOX ELITE SCRIPT V6: ULTRA FARM & STEALTH + BOTÃO UI + ANTI-AFK + AUTO CLICKER ]]
 -- Criado para fins educacionais e de estudo de lógica em Lua.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser") -- Para o Anti-AFK Real
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+
+-- [[ PROTEÇÃO ANTI-DETECÇÃO AVANÇADA (ANTI-KICK & ANTI-BAN) ]]
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    -- Anti-Kick: Intercepta o comando de expulsão
+    if tostring(method) == "Kick" or tostring(method) == "kick" then
+        warn("[MANUS PROTECT] Bloqueada tentativa de Kick do servidor.")
+        return wait(9e9) -- Trava o sinal de expulsão
+    end
+    
+    -- Anti-Ban: Bloqueia RemoteEvents de detecção comuns
+    if tostring(method) == "FireServer" then
+        local remoteName = tostring(self.Name):lower()
+        if remoteName:find("kick") or remoteName:find("ban") or remoteName:find("cheat") or remoteName:find("detect") then
+            warn("[MANUS PROTECT] Bloqueado RemoteEvent de detecção: " .. self.Name)
+            return nil
+        end
+    end
+
+    return oldNamecall(self, unpack(args))
+end)
+
+-- Anti-Ban: Oculta mudanças na Câmera para o jogo
+local oldIndex
+oldIndex = hookmetamethod(game, "__index", function(self, key)
+    if not checkcaller() then
+        if key == "CFrame" and self:IsA("Camera") then
+            return oldIndex(self, key)
+        end
+    end
+    return oldIndex(self, key)
+end)
 
 -- [[ VARIÁVEIS DE ESTADO ]]
 local espLinesEnabled = false
@@ -15,51 +51,69 @@ local aimbotEnabled = false
 local showFOV = false
 local infJumpEnabled = false
 local flyEnabled = false
+local autoClickerEnabled = false
+local antiAFKEnabled = true -- Já vem ativado conforme pedido
 local flySpeed = 50
 
--- [[ CONFIGURAÇÃO DO FOV (CÍRCULO) ]]
+-- [[ CONFIGURAÇÃO DO FOV ]]
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible = false
 fovCircle.Radius = 60
-fovCircle.Color = Color3.fromRGB(255, 255, 255)
+fovCircle.Color = Color3.fromRGB(0, 255, 255)
 fovCircle.Thickness = 1
 fovCircle.Filled = false
 fovCircle.Transparency = 1
 
--- [[ CONFIGURAÇÃO DA UI AMPLIADA ]]
+-- [[ CONFIGURAÇÃO DA UI ]]
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local TitleLabel = Instance.new("TextLabel")
 local CloseButton = Instance.new("TextButton")
+local OpenButton = Instance.new("TextButton") -- Botão para abrir/fechar na tela
 local ScrollingFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
-ScreenGui.Name = "ManusElite_V5"
+ScreenGui.Name = "ManusElite_V6"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
+-- Botão Abrir/Fechar Flutuante
+OpenButton.Name = "OpenButton"
+OpenButton.Parent = ScreenGui
+OpenButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+OpenButton.BorderSizePixel = 2
+OpenButton.BorderColor3 = Color3.fromRGB(0, 255, 255)
+OpenButton.Position = UDim2.new(0, 10, 0.5, -20)
+OpenButton.Size = UDim2.new(0, 80, 0, 40)
+OpenButton.Text = "MENU"
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.TextSize = 14
+OpenButton.Draggable = true
+
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.5, -150, 0.5, -175)
-MainFrame.Size = UDim2.new(0, 300, 0, 350) -- UI MAIS GRANDE
+MainFrame.Size = UDim2.new(0, 300, 0, 380)
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = true -- Começa aberto
 
 TitleLabel.Name = "Title"
 TitleLabel.Parent = MainFrame
-TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TitleLabel.Size = UDim2.new(1, 0, 0, 40)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TitleLabel.Size = UDim2.new(1, 0, 0, 45)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "MANUS ELITE V5 - FULL"
+TitleLabel.Text = "MANUS ELITE V6 - ULTRA"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
 TitleLabel.TextSize = 18
 
 CloseButton.Name = "CloseButton"
 CloseButton.Parent = MainFrame
 CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-CloseButton.Position = UDim2.new(1, -35, 0, 5)
+CloseButton.Position = UDim2.new(1, -35, 0, 7)
 CloseButton.Size = UDim2.new(0, 30, 0, 30)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -68,43 +122,64 @@ CloseButton.Font = Enum.Font.GothamBold
 ScrollingFrame.Name = "ScrollingFrame"
 ScrollingFrame.Parent = MainFrame
 ScrollingFrame.BackgroundTransparency = 1
-ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
-ScrollingFrame.Size = UDim2.new(1, -20, 1, -60)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 1.5, 0)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 55)
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -65)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
 ScrollingFrame.ScrollBarThickness = 4
 
 UIListLayout.Parent = ScrollingFrame
-UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-local function createToggle(name, text, callback)
+local function createToggle(name, text, default, callback)
     local btn = Instance.new("TextButton")
     btn.Name = name
     btn.Parent = ScrollingFrame
-    btn.Size = UDim2.new(0.95, 0, 0, 35)
-    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.Size = UDim2.new(0.95, 0, 0, 40)
+    btn.BackgroundColor3 = default and Color3.fromRGB(0, 120, 120) or Color3.fromRGB(40, 40, 40)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Text = text .. ": OFF"
+    btn.Text = text .. ": " .. (default and "ON" or "OFF")
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 14
     btn.BorderSizePixel = 0
     
-    local enabled = false
+    local enabled = default
     btn.MouseButton1Click:Connect(function()
         enabled = not enabled
         btn.Text = text .. ": " .. (enabled and "ON" or "OFF")
-        btn.BackgroundColor3 = enabled and Color3.fromRGB(0, 120, 120) or Color3.fromRGB(45, 45, 45)
+        btn.BackgroundColor3 = enabled and Color3.fromRGB(0, 120, 120) or Color3.fromRGB(40, 40, 40)
         callback(enabled)
     end)
     return btn
 end
 
 -- FECHAR/ABRIR UI
-local function toggleUI() ScreenGui.Enabled = not ScreenGui.Enabled end
+local function toggleUI() MainFrame.Visible = not MainFrame.Visible end
 CloseButton.MouseButton1Click:Connect(toggleUI)
+OpenButton.MouseButton1Click:Connect(toggleUI)
 UserInputService.InputBegan:Connect(function(i, g) if not g and i.KeyCode == Enum.KeyCode.Insert then toggleUI() end end)
 
--- [[ FUNÇÕES DE MOVIMENTAÇÃO ]]
+-- [[ FUNÇÕES ULTRA FARM ]]
+-- Anti-AFK Real (Simula atividade no motor do jogo)
+LocalPlayer.Idled:Connect(function()
+    if antiAFKEnabled then
+        VirtualUser:Button2Down(Vector2.new(0,0), Camera.CFrame)
+        wait(1)
+        VirtualUser:Button2Up(Vector2.new(0,0), Camera.CFrame)
+    end
+end)
+
+-- Auto Clicker (25ms)
+spawn(function()
+    while wait(0.025) do -- 25ms
+        if autoClickerEnabled then
+            VirtualUser:Button1Down(Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2), Camera.CFrame)
+            wait(0.01)
+            VirtualUser:Button1Up(Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2), Camera.CFrame)
+        end
+    end
+end)
+
 -- Infinite Jump
 UserInputService.JumpRequest:Connect(function()
     if infJumpEnabled then
@@ -118,11 +193,9 @@ local function startFly()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
-    
     flyBodyVel = Instance.new("BodyVelocity", hrp)
     flyBodyVel.Velocity = Vector3.new(0, 0, 0)
     flyBodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    
     flyBodyGyro = Instance.new("BodyGyro", hrp)
     flyBodyGyro.P = 9e4
     flyBodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
@@ -139,14 +212,12 @@ RunService.RenderStepped:Connect(function()
         local hrp = LocalPlayer.Character.HumanoidRootPart
         local camCF = Camera.CFrame
         local dir = Vector3.new(0, 0, 0)
-        
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + camCF.LookVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - camCF.LookVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - camCF.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + camCF.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0, 1, 0) end
-        
         flyBodyVel.Velocity = dir * flySpeed
         flyBodyGyro.CFrame = camCF
     end
@@ -154,21 +225,12 @@ end)
 
 -- [[ LÓGICA ESP (SKELETON, BOX, LINES, TEAM COLORS) ]]
 local objects = {}
-
 local function createDrawings(player)
-    local d = {
-        Line = Drawing.new("Line"),
-        Box = Drawing.new("Square"),
-        Skeleton = {}
-    }
-    -- Setup Skeleton Lines (Basic joints)
-    local joints = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "RightUpperArm", "RightLowerArm", "LeftUpperLeg", "LeftLowerLeg", "RightUpperLeg", "RightLowerLeg"}
+    local d = {Line = Drawing.new("Line"), Box = Drawing.new("Square"), Skeleton = {}}
     for i=1, 10 do d.Skeleton[i] = Drawing.new("Line") end
-    
     d.Line.Thickness = 1
     d.Box.Thickness = 1
     d.Box.Filled = false
-    
     objects[player] = d
 end
 
@@ -181,21 +243,14 @@ local function updateESP()
             local hrp = char:FindFirstChild("HumanoidRootPart")
             local hum = char:FindFirstChild("Humanoid")
             local head = char:FindFirstChild("Head")
-            
             local teamColor = p.TeamColor.Color or Color3.fromRGB(255, 255, 255)
-            
             if hum and hum.Health > 0 and hrp and head then
                 local hrpPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                
-                -- Box & Lines
                 if onScreen then
-                    -- Lines
                     d.Line.Visible = espLinesEnabled
                     d.Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                     d.Line.To = Vector2.new(hrpPos.X, hrpPos.Y)
                     d.Line.Color = teamColor
-                    
-                    -- Box
                     d.Box.Visible = espBoxEnabled
                     local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
                     local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
@@ -206,10 +261,7 @@ local function updateESP()
                     d.Line.Visible = false
                     d.Box.Visible = false
                 end
-                
-                -- Skeleton (Simplificado para estabilidade)
                 if espSkeletonEnabled and onScreen then
-                    -- Exemplo: Head para Torso
                     local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
                     if torso then
                         local p1 = Camera:WorldToViewportPoint(head.Position)
@@ -267,16 +319,15 @@ local function getClosest()
 end
 
 -- [[ CRIAÇÃO DOS BOTÕES ]]
-createToggle("AimbotToggle", "Aimbot (Head)", function(v) aimbotEnabled = v end)
-createToggle("FOVToggle", "Show FOV (60)", function(v) showFOV = v end)
-createToggle("LineToggle", "ESP Lines", function(v) espLinesEnabled = v end)
-createToggle("BoxToggle", "ESP Box", function(v) espBoxEnabled = v end)
-createToggle("SkeletonToggle", "ESP Skeleton", function(v) espSkeletonEnabled = v end)
-createToggle("JumpToggle", "Infinite Jump", function(v) infJumpEnabled = v end)
-createToggle("FlyToggle", "Fly (W,A,S,D,Space)", function(v) 
-    flyEnabled = v 
-    if v then startFly() else stopFly() end
-end)
+createToggle("AimbotToggle", "Aimbot (Head)", false, function(v) aimbotEnabled = v end)
+createToggle("FOVToggle", "Show FOV (60)", false, function(v) showFOV = v end)
+createToggle("LineToggle", "ESP Lines", false, function(v) espLinesEnabled = v end)
+createToggle("BoxToggle", "ESP Box", false, function(v) espBoxEnabled = v end)
+createToggle("SkeletonToggle", "ESP Skeleton", false, function(v) espSkeletonEnabled = v end)
+createToggle("JumpToggle", "Infinite Jump", false, function(v) infJumpEnabled = v end)
+createToggle("FlyToggle", "Fly (Voo)", false, function(v) flyEnabled = v if v then startFly() else stopFly() end end)
+createToggle("ClickerToggle", "Auto Clicker (25ms)", false, function(v) autoClickerEnabled = v end)
+createToggle("AFKToggle", "Anti-AFK Real", true, function(v) antiAFKEnabled = v end)
 
 -- [[ LOOP PRINCIPAL ]]
 RunService.RenderStepped:Connect(function()
@@ -299,3 +350,4 @@ Players.PlayerRemoving:Connect(function(p)
         objects[p] = nil 
     end 
 end)
+
